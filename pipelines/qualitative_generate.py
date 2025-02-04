@@ -72,7 +72,7 @@ def qualitative_generate(
     r_of_c="baseline",
     c_steps=20,
     ode_after=0.11,
-    text=None,
+    text="U uwawa uwa",
     cfg=2,
     seed=None,
     save_pils=False,

@@ -3,6 +3,7 @@ import json
 import os
 from datetime import datetime
 from abc import ABC, abstractmethod
+from PIL import Image
 
 # Third-party library imports
 import numpy as np
@@ -12,6 +13,7 @@ import matplotlib.pyplot as plt
 # Local application/library specific imports
 from api import demon_sampling, get_init_latent, odeint
 from utils import from_latent_to_pil
+from safety_checker import safety_check_batch
 
 
 class DemonGenerater(ABC):
@@ -148,8 +150,8 @@ class DemonGenerater(ABC):
             "beta": self.beta,
             "tau": self.tau,
             "K": self.K,
-            "demon_type": self.demon_type,
             "T": self.T,
+            "demon_type": self.demon_type,
             "r_of_c": self.r_of_c,
             "c_steps": self.c_steps,
             "ode_after": self.ode_after,
@@ -183,7 +185,14 @@ class DemonGenerater(ABC):
                 ode_after=self.ode_after,
                 log_dir=self.log_dir,
             )
-            from_latent_to_pil(latent).save(os.path.join(self.log_dir, 'out.png'))
+            pil = from_latent_to_pil(latent)
+            nsfw_checks = safety_check_batch([pil])[0]
+            
+            if nsfw_checks:
+                pil = Image.new("RGB", pil.size, (0, 0, 0))
+                print("NSFW image detected. Replaced with a black image.")
+
+            pil.save(os.path.join(self.log_dir, 'out.png'))
             self.generate_pyplot(
                 os.path.join(self.log_dir, "expected_reward.txt"),
                 os.path.join(self.log_dir, "expected_reward.png")

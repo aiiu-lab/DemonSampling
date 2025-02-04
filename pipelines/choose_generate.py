@@ -6,28 +6,12 @@ from image_grid import create_image_grid
 from generate_abstract import DemonGenerater
 from utils import from_latent_to_pil
 
+from PIL import Image
+
+from safety_checker import safety_check_batch
+
 
 class ChooseGenerator(DemonGenerater):
-    def rewards_latent(self, latents):
-        """
-        Convert latent representations to PIL images, compute rewards, and optionally save each image.
-
-        Args:
-            latents: The latent representations.
-
-        Returns:
-            The computed rewards.
-        """
-        pils = from_latent_to_pil(latents)
-        rs = self.rewards(pils)
-        nowtime = int(datetime.now().timestamp() * 1e6)
-        if self.save_pils:
-            trajectory_dir = os.path.join(self.log_dir, "trajectory")
-            os.makedirs(trajectory_dir, exist_ok=True)
-            for i, (pil, r) in enumerate(zip(pils, rs)):
-                pil.save(os.path.join(trajectory_dir, f"{nowtime}_{i}_{r}.png"))
-        return rs
-
     def rewards(self, pils):
         """
         Compute a reward for a list of PIL images by creating an image grid.
@@ -38,7 +22,16 @@ class ChooseGenerator(DemonGenerater):
         Returns:
             The generated image grid as the reward.
         """
-        return create_image_grid(pils)
+        nsfw_checks = safety_check_batch(pils)
+        new_pils = []
+        breakpoint()
+        for pil, nsfw in zip(pils, nsfw_checks):
+            if nsfw:
+                black_image = Image.new("RGB", pil.size, (0, 0, 0))
+                new_pils.append(black_image)
+            else:
+                new_pils.append(pil)
+        return create_image_grid(new_pils)
 
 
 def choose_generate(
