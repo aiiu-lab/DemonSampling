@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from diffusers import KDPM2DiscreteScheduler, UNet2DConditionModel
+from diffusers import KDPM2DiscreteScheduler, UNet2DConditionModel, AutoPipelineForText2Image
 from scipy.interpolate import InterpolatedUnivariateSpline
 from abc import ABC, abstractmethod
 
@@ -137,7 +137,10 @@ class LatentConsistencyModel(LatentModel):
     """
     def __init__(self, path=C_FILE_PATH, scheduler_path=FILE_PATH):
         super().__init__()
-        unet = UNet2DConditionModel.from_pretrained(path, torch_dtype=DTYPE, variant="fp16").to(device=DEVICE)
+        pipe = AutoPipelineForText2Image.from_pretrained("Lykon/dreamshaper-7", torch_dtype=DTYPE)
+        pipe.load_lora_weights(path)
+        pipe.fuse_lora()
+        unet = pipe.unet.to(dtype=DTYPE, device=DEVICE)
         scheduler = KDPM2DiscreteScheduler.from_pretrained(scheduler_path, subfolder='scheduler')
         self.sigma_score = SigmaScoreModel(unet, scheduler)
         

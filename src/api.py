@@ -32,13 +32,7 @@ class OdeModeContextManager:
 def duplicate_condition(conds, n):
     """Repeat each tensor in a condition dictionary n times."""
     return {
-        "encoder_hidden_states": conds["encoder_hidden_states"].repeat(n, 1, 1),
-        "added_cond_kwargs": {
-            "text_embeds": conds["added_cond_kwargs"]["text_embeds"].repeat(n, 1),
-            "time_ids": conds["added_cond_kwargs"]["time_ids"].repeat(n, 1),
-            "timestep_cond": (conds["timestep_cond"].repeat(n, 1)
-                              if conds["timestep_cond"] is not None else None),
-        },
+        "encoder_hidden_states": conds["encoder_hidden_states"].repeat(n, 1, 1), 
     }
 
 
@@ -263,7 +257,7 @@ def demon_sampling(x,
     }
 
     if r_of_c == "consistency":
-        cond = get_condition(cfg_dict['prompts'][:-1], time_cond=True)
+        cond = get_condition(cfg_dict['prompts'][:-1])
         if K > 1:
             cond = duplicate_condition(cond, K)
 
@@ -280,7 +274,7 @@ def demon_sampling(x,
         next_xs = sde_step(x, t, prev_t, prompts, zs)
 
         if r_of_c == "consistency":
-            candidates_0 = consistency_sampling(next_xs, cond, sample_step=c_steps + 1, start_t=t)
+            candidates_0 = consistency_sampling(next_xs, cond, sample_step=2, start_t=t)
         elif r_of_c == "baseline":
             candidates_0 = odeint_rest(next_xs, t, ts, prompts, max_ode_steps=c_steps)
 

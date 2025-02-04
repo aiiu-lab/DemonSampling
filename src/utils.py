@@ -4,19 +4,10 @@ from diffusers import AutoencoderKL
 from transformers import CLIPTextModel, CLIPTokenizer, CLIPTextModelWithProjection
 from tqdm import tqdm, trange
 
-from config import FILE_PATH, DTYPE, DEVICE
+from config import FILE_PATH, DTYPE, DEVICE, IMAGE_DIMENSION
 
-# Load tokenizers and text encoders.
-tokenizers = [
-    CLIPTokenizer.from_pretrained(FILE_PATH, subfolder="tokenizer"),
-    CLIPTokenizer.from_pretrained(FILE_PATH, subfolder="tokenizer_2")
-]
-text_encoders = [
-    CLIPTextModel.from_pretrained(FILE_PATH, subfolder="text_encoder").to(device=DEVICE, dtype=DTYPE),
-    CLIPTextModelWithProjection.from_pretrained(FILE_PATH, subfolder="text_encoder_2").to(device=DEVICE, dtype=DTYPE)
-]
-
-# Load the VAE model.
+tokenizer = CLIPTokenizer.from_pretrained(FILE_PATH, subfolder="tokenizer")
+text_encoder = CLIPTextModel.from_pretrained(FILE_PATH, subfolder="text_encoder").to(device=DEVICE, dtype=DTYPE)
 vae = AutoencoderKL.from_pretrained(FILE_PATH, subfolder='vae').to(device=DEVICE, dtype=torch.float32)
 
 # Define transforms.
@@ -27,7 +18,7 @@ tensor_convert = transforms.ToTensor()
 @torch.inference_mode()
 def from_pil_to_latent(pil_img):
     """Convert a PIL image to a latent representation."""
-    pil_img = pil_img.resize((1024, 1024))
+    pil_img = pil_img.resize((IMAGE_DIMENSION, IMAGE_DIMENSION))
     img_tensor = tensor_convert(pil_img).unsqueeze(0).to(device=DEVICE, dtype=DTYPE)
     return encode(img_tensor)
 
@@ -67,53 +58,14 @@ def get_guidance_scale_embedding(w, embedding_dim=512, dtype=torch.float32):
 
 
 @torch.inference_mode()
-def get_condition(text, time_cond=False):
-    """
-    Generate a condition dictionary from text.
-    
-    Uses two tokenizers and encoders, concatenates their outputs, and adds auxiliary
-    conditioning information. If time_cond is True, includes timestep conditioning.
-    """
-    # Duplicate the prompt for both encoders.
-    prompts = [text, text]
-    prompt_embeds_list = []
-    pooled_prompt_embeds = None
-
-    for prompt, tokenizer, text_encoder in zip(prompts, tokenizers, text_encoders):
-        text_inputs = tokenizer(
-            prompt,
-            padding="max_length",
-            max_length=tokenizer.model_max_length,
-            truncation=True,
-            return_tensors="pt"
-        )
-        text_input_ids = text_inputs.input_ids.to(DEVICE)
-        outputs = text_encoder(text_input_ids, output_hidden_states=True)
-        pooled_prompt_embeds = outputs[0]
-        # Use the second-to-last hidden state.
-        prompt_embeds_list.append(outputs.hidden_states[-2])
-
-    prompt_embeds = torch.concat(prompt_embeds_list, dim=-1).to(dtype=text_encoders[1].dtype, device=DEVICE)
-    bs, seq_len, _ = prompt_embeds.shape
-    # Reshape for consistency.
-    prompt_embeds = prompt_embeds.view(bs, seq_len, -1)
-
-    # Auxiliary condition: constant time IDs.
-    add_time_ids = torch.tensor([[1024., 1024., 0., 0., 1024., 1024.]],
-                                dtype=torch.float16, device=DEVICE).repeat(bs, 1)
-
-    if time_cond:
-        guidance_scale_tensor = torch.zeros(bs, device=DEVICE)
-        timestep_cond = get_guidance_scale_embedding(guidance_scale_tensor, embedding_dim=256).to(device=DEVICE, dtype=DTYPE)
-    else:
-        timestep_cond = None
-
+def get_condition(text):
+    with torch.no_grad():
+        input_ids = tokenizer(text, max_length=tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt").input_ids
+        input_ids = input_ids.to(DEVICE)
+        text_embedding = text_encoder(input_ids)[0]
     return {
-        "encoder_hidden_states": prompt_embeds,
-        "timestep_cond": timestep_cond,
-        "added_cond_kwargs": {"text_embeds": pooled_prompt_embeds, "time_ids": add_time_ids},
+        "encoder_hidden_states": text_embedding,
     }
-
 
 @torch.inference_mode()
 def encode(input_img):
@@ -137,7 +89,7 @@ def decode(latents):
     Processes the latent batch in small chunks.
     """
     latents = (1 / vae.config.scaling_factor) * latents
-    MAX_CHUNK_SIZE = 1
+    MAX_CHUNK_SIZE = 2
     images = []
     for i in range(0, len(latents), MAX_CHUNK_SIZE):
         chunk = latents[i:i + MAX_CHUNK_SIZE].to(torch.float32)
