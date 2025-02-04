@@ -24,7 +24,6 @@ class ChooseGenerator(DemonGenerater):
         """
         nsfw_checks = safety_check_batch(pils)
         new_pils = []
-        breakpoint()
         for pil, nsfw in zip(pils, nsfw_checks):
             if nsfw:
                 black_image = Image.new("RGB", pil.size, (0, 0, 0))
