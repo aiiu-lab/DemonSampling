@@ -11,11 +11,9 @@ This repository contains the official implementation of Sampling Demon, an infer
 - [Overview](#overview)
 - [Installation](#installation)
 - [Usage](#usage)
-  - [Running Provided Pipelines](#running-provided-pipelines)
-  - [LLM and Manual Selection Pipelines](#llm-and-manual-selection-pipelines)
   - [Custom Implementations](#custom-implementations)
+  - [Running Provided Pipelines](#running-provided-pipelines)
 - [Low-Level API](#low-level-api)
-- [Experiments and Results](#experiments-and-results)
 - [Credits and Acknowledgments](#credits-and-acknowledgments)
 - [Citation](#citation)
 - [License](#license)
@@ -23,6 +21,10 @@ This repository contains the official implementation of Sampling Demon, an infer
 ---
 
 ## Overview
+
+
+![Short Video](https://rareone0602.github.io/Demon_page/static/images/ShortVideo.gif)
+
 
 Diffusion models have revolutionized image generation; however, aligning these models with diverse user preferences remains a significant challenge. Traditional approaches rely either on costly retraining or require differentiable reward functions, limiting their scope when using non-differentiable sources such as VLM APIs and human feedback.
 
@@ -32,6 +34,9 @@ Diffusion models have revolutionized image generation; however, aligning these m
 - **Plug-and-Play Integration:** Seamlessly integrate with existing diffusion models without additional training.
 - **Theoretical and Empirical Validation:** We provide both theoretical insights and comprehensive experimental evidence showing significant improvements in aesthetic scores.
 - **Broad Applicability:** Our approach supports reward signals from various sources, including VLM APIs and human judgements.
+
+![Formulation](https://rareone0602.github.io/Demon_page/static/images/DemonVideo.gif)
+
 
 ---
 
@@ -71,9 +76,12 @@ python pipelines/vllm_generate.py --model "gemini" --K 16 --T 128 --beta 0.1
 
 #### Running Manual Selection Pipeline
 
+![ui](https://github.com/user-attachments/assets/07a27b9d-5d85-49b7-bfec-c2e2b30515bd)
+
 Interact with the algorithm via the manual selection pipeline, which provides a user interface for selecting preferred outcomes:
 
 ```bash
+
 python pipelines/choose_generate.py --text "A boulder in elevator" --K 16 --T 128
 ```
 
