@@ -45,7 +45,8 @@ Diffusion models have revolutionized image generation; however, aligning these m
 To install the required packages, run:
 
 ```bash
-conda env create -f environment.yml  # The build takes about 30 minutes on our machine :(
+python3 -m venv demon_env
+source demon_env/bin/activate
 pip install -e .
 ```
 
@@ -62,11 +63,19 @@ pip install -e .
 
 ## Usage
 
+### Quick Start
+Here is a minimal example to get started with Sampling Demon:
+
+```bash
+python pipelines/qualitative_generate.py --text "An astronaut riding a horse on Mars." --pickscore --r_of_c "consistency"
+```
+
 ### Custom Implementations
 
 Develop your own pipeline by subclassing the `DemonGenerater` abstract class. Override the `rewards` method to integrate your custom reward function (i.e., mapping a list of PIL images to reward scores). 
 
 ```python
+from generate_abstract import DemonGenerater
 class YourRewardGenerator(DemonGenerater):
     def rewards(self, pils: List[Image]) -> List[float]:
         """
@@ -110,6 +119,7 @@ This pipeline leverages a Visual-Language Model (VLM) as the reward function to 
 ```bash
 python pipelines/vllm_generate.py --model "gemini" --K 16 --T 128 --beta 0.1
 ```
+Note: You may need to set up API access for the specified VLM model.
 
 #### Running Manual Selection Pipeline
 
@@ -130,32 +140,46 @@ For advanced users who wish to modify Sampling Demon at a lower level, we provid
 ### ODE Integral
 
 ```python
+from api import odeint, get_init_latent
+from utils import from_latent_to_pil
+
 condition = {
     "prompts": ["On Moon", "Astronaut", "Riding a donkey"],
     "cfgs": [3, 2, 4]
 }
+
 steps = 20
 x = get_init_latent()  # sigma is 14.6488 for Stable Diffusion
 x = odeint(x, condition, steps)
 pil = from_latent_to_pil(x)
+pil.save('odeint_output.png')
 ```
 
 ### ODE Reverse
 
 ```python
+from api import odeint, oderevert
+from utils import from_latent_to_pil, from_pil_to_latent
+from PIL import Image
+
 condition = {
-    "prompts": ["An astronaut riding a horse on Mars."],
-    "cfgs": [5]
+    "prompts": ["On Moon", "Astronaut", "Riding a donkey"],
+    "cfgs": [3, 2, 4]
 }
+
+pil = Image.open("odeint_output.png").convert("RGB")
 x = from_pil_to_latent(pil)
 x = oderevert(x, condition)
 x = odeint(x, condition, 20)
 pil = from_latent_to_pil(x)
+pil.save("ode_reverse_output.png")
 ```
 
 ### SDEdit
 
 ```python
+from api import odeint, sdeint, get_init_latent, latent_sde, oderevert
+from utils import get_condition, from_latent_to_pil, from_pil_to_latent
 old_condition = {
     "prompts": ["An astronaut riding a horse on Mars."],
     "cfgs": [5]

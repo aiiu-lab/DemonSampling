@@ -8,7 +8,7 @@ from PIL import Image
 # Third-party library imports
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
+
 
 # Local application/library specific imports
 from api import demon_sampling, get_init_latent, odeint
@@ -109,6 +109,7 @@ class DemonGenerater(ABC):
             log_txt (str): Path to the log file with reward data.
             out_img_file (str): Output image file path for the generated plot.
         """
+        import matplotlib.pyplot as plt
         scores, std_devs, ts = [], [], []
         with open(log_txt, "r") as f:
             for line in f.readlines():
